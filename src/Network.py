@@ -9,6 +9,7 @@ from base64 import urlsafe_b64encode
 from hashlib import sha256
 from dataclasses import dataclass
 from enum import Enum
+from datetime import datetime, timezone
 
 class DiscordRequest:
     @staticmethod
@@ -51,7 +52,7 @@ class TokenManager:
         return await DiscordRequest.CreatePinnedDmMsg(user, TokenManager.DELIMITER * (len(TokenManager.Token) - 1))
     
     @staticmethod
-    async def GetTokens(user: discord.User, tokenMsgId: int) -> TokenManager.CachedTokens:
+    async def GetTokens(user: discord.User | discord.Member, tokenMsgId: int) -> TokenManager.CachedTokens:
         dm = await user.create_dm()
         msg = await dm.fetch_message(tokenMsgId)
 
@@ -125,7 +126,8 @@ class NintendoRequest:
     async def GetSessionToken(
         client: httpx.AsyncClient,
         sessionCode: str,
-        authVerifier: str) -> str:
+        authVerifier: str
+    ) -> str:
 
         REQUEST_URL = "https://accounts.nintendo.com/connect/1.0.0/api/session_token"
 
@@ -142,14 +144,90 @@ class NintendoRequest:
         	"session_token_code_verifier": authVerifier
         }
 
-        req = await client.post(REQUEST_URL, headers=headers, data=body)
-        res = req.json()
+        resp = await client.post(REQUEST_URL, headers=headers, data=body)
+        jsonResp = resp.json()
 
-        return res["session_token"]
-    
-    # Get Access/ID Token 
+        return jsonResp["session_token"]
     
 
+    # Get Access/ID Token ---------
+    @dataclass
+    class ConnectTokens:
+        ID: str
+        Access: str
+
+    @staticmethod
+    async def GetConnectTokens(
+        client: httpx.AsyncClient,
+        sessionToken: str
+    ) -> NintendoRequest.ConnectTokens:
+        
+        REQUEST_URL = "https://accounts.nintendo.com/connect/1.0.0/api/token"
+
+        headers = {
+        	"User-Agent":      NintendoRequest._getRandomUserAgent(),
+        	"Accept":          "application/json",
+        	"Accept-Encoding": "gzip"
+        }
+
+        body = {
+            "client_id": "71b963c1b7b6d119",
+            "session_token": sessionToken,
+            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer-session-token"
+        }
+
+        resp = await client.post(REQUEST_URL, headers=headers, json=body)
+        jsonResp = resp.json()
+
+        return NintendoRequest.ConnectTokens(
+            ID = jsonResp["id_token"],
+            Access = jsonResp["access_token"]
+        )
+    
+    
+    # Get About Me ----------------
+    @dataclass
+    class UserInfo:
+        ID: str
+        Birthday: str
+        Gender: str
+        Nickname: str
+        IconURI: str
+        Country: str
+        IsChild: bool
+        CreatedAt: datetime
+        Language: str
+
+    @staticmethod
+    async def GetUserInfo(
+        client: httpx.AsyncClient,
+        accessToken: str
+    ) -> NintendoRequest.UserInfo:
+        
+        REQUEST_URL = "https://api.accounts.nintendo.com/2.0.0/users/me"
+
+        headers = {
+        	"User-Agent":      "NASDKAPI; Android",
+            "Accept-Language": "en-US",
+        	"Accept":          "application/json",
+            "Authorization":   f"Bearer {accessToken}",
+        	"Accept-Encoding": "gzip"
+        }
+
+        resp = await client.get(REQUEST_URL, headers=headers)
+        jsonResp = resp.json()
+
+        return NintendoRequest.UserInfo(
+            ID        = jsonResp["id"],
+            Birthday  = jsonResp["birthday"],
+            Gender    = jsonResp["gender"],
+            Nickname  = jsonResp["nickname"],
+            IconURI   = jsonResp["iconUri"],
+            Country   = jsonResp["country"],
+            IsChild   = jsonResp["isChild"],
+            CreatedAt = datetime.fromtimestamp(jsonResp["createdAt"], timezone.utc),
+            Language  = jsonResp["language"]
+        )
 
     # Private Helpers -------------
     @staticmethod

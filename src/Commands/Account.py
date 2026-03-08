@@ -71,9 +71,9 @@ class Account(commands.Cog):
     @group.command(name="login_stage_2", description="Provide your sign in URL to complete the login.")
     @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
     async def LoginStage2(self, interaction: discord.Interaction, copied_url: str):
-        await interaction.response.defer(ephemeral=True)
-        
         try:
+            await interaction.response.defer(ephemeral=True)
+
             # Make sure that the user ran stage 1 before attempting stage 2.
             verifier = self.state.DB.Get(self.state.DB.AuthVerifierDB, interaction.user.id)
             if verifier is None:
@@ -122,6 +122,10 @@ class Account(commands.Cog):
             await interaction.user.send("\n".join(disclaimer))
 
             # Create the token storage message.
+            oldTokenStore = self.state.DB.Get(self.state.DB.TokenMessageDB, interaction.user.id)
+            if oldTokenStore is not None:
+                await Network.DiscordRequest.AttemptDeleteDmMsg(interaction.user, int(oldTokenStore))
+            
             storageMsgId = await Network.TokenManager.CreateTokenMessage(interaction.user)
             self.state.DB.Set(self.state.DB.TokenMessageDB, interaction.user.id, storageMsgId)
 
@@ -130,7 +134,7 @@ class Account(commands.Cog):
             await Network.TokenManager.SetTokens(interaction.user, storageMsgId, tokens)
 
             await interaction.followup.send(
-                "✅ Signed in successfully!",
+                "✅ Successfully signed in.",
                 ephemeral=True
             )
 
@@ -150,10 +154,121 @@ class Account(commands.Cog):
                 ephemeral=True
             )
 
+    @group.command(name="about_me", description="Get information about the current Nintendo Account.")
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
+    async def AboutMe(self, interaction: discord.Interaction):
+        try:
+            await interaction.response.defer()
 
+            # Retrieve the token store message ID from the database.
+            tokenMsg = self.state.DB.Get(self.state.DB.TokenMessageDB, interaction.user.id)
+            if tokenMsg is None:
+                await interaction.followup.send(
+                    "⛔ You don't appear to be signed in. Please run `/account login_stage_1`, follow the instructions, and try again.",
+                    ephemeral=True
+                )
+                return
+            
+            # Fetch the tokens from Dicord using the message ID.
+            tokens = await Network.TokenManager.GetTokens(interaction.user, tokenMsg)
+            if not tokens.Session:
+                await interaction.followup.send(
+                    "⛔ Session Token is missing from the DM token store. Please try signing in again.",
+                    ephemeral=True
+                )
+                return
+
+            # Attempt to get the Access Token from Nintendo.
+            try:
+                connectTokens = await Network.NintendoRequest.GetConnectTokens(self.client, tokens.Session)
+            except Exception:
+                await interaction.followup.send(
+                    "⛔ Unable to get an Access Token from Nintendo with the current Session Token.",
+                    ephemeral=True
+                )
+                return
+            
+            # Get User Info from Nintendo using the access token.
+            try:
+                userInfo = await Network.NintendoRequest.GetUserInfo(self.client, connectTokens.Access)
+            except Exception:
+                await interaction.followup.send(
+                    "⛔ Unable to get User Info from the received Access Token.",
+                    ephemeral=True
+                )
+                return
+            
+            # Send the resulting embed.
+            embed = discord.Embed(
+                title=userInfo.Nickname,
+                color=0x41A0AE
+            )
+            embed.set_thumbnail(url=userInfo.IconURI)
+            embed.add_field(name="ID", value=userInfo.ID, inline=False)
+            embed.add_field(
+                name="Account Created",
+                value=f"{userInfo.CreatedAt.strftime('%B')} {userInfo.CreatedAt.day}, {userInfo.CreatedAt.year}",
+                inline=False
+            )
+
+            await interaction.followup.send(embed=embed)
+
+
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "⛔ Couldn't access DMs. Check your DM permissions or rerun the command in O.R.C.A's DMs.",
+                ephemeral=True
+            )
+        except discord.HTTPException:
+            await interaction.followup.send(
+                "⛔ There was an issue communicating with Discord. Please try again later.",
+                ephemeral=True
+            )
+        except Exception as ex:
+            await interaction.followup.send(
+                f"⛔ An unknown error occurred while attempting to get user information: `{ex}`.",
+                ephemeral=True
+            )
     
-                
+    @group.command(name="logout", description="Unlink your Nintendo Account.")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
+    async def Logout(self, interaction: discord.Interaction):
+        try:
+            await interaction.response.defer()
 
+            # Get all messages linked to the current sign in.
+            messages = [
+                self.state.DB.Get(self.state.DB.AuthMessageDB, interaction.user.id),
+                self.state.DB.Get(self.state.DB.TokenMessageDB, interaction.user.id)
+            ]
+
+            # Delete the fetched messages.
+            for message in messages:
+                if message is not None:
+                    await Network.DiscordRequest.AttemptDeleteDmMsg(interaction.user, int(message))
+            
+            # Clear all user information from the database.
+            self.state.DB.Del(self.state.DB.AuthMessageDB, interaction.user.id)
+            self.state.DB.Del(self.state.DB.TokenMessageDB, interaction.user.id)
+            self.state.DB.Del(self.state.DB.AuthVerifierDB, interaction.user.id)
+            
+            await interaction.followup.send("✅ Successfully signed out.")
+
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "⛔ Couldn't access DMs. Check your DM permissions or rerun the command in O.R.C.A's DMs.",
+                ephemeral=True
+            )
+        except discord.HTTPException:
+            await interaction.followup.send(
+                "⛔ There was an issue communicating with Discord. Please try again later.",
+                ephemeral=True
+            )
+        except Exception as ex:
+            await interaction.followup.send(
+                f"⛔ An unknown error occurred while deleting login information: `{ex}`.",
+                ephemeral=True
+            )
 
 
     async def cog_load(self):
@@ -162,6 +277,4 @@ class Account(commands.Cog):
     
     async def cog_unload(self):
         await self.client.aclose()
-
-
 
