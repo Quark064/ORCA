@@ -1,0 +1,33 @@
+import os
+
+import discord
+from discord.ext import commands
+
+from Models import AppConfig, AppState
+from Database import KeyValDB
+
+from Commands.Dev import Dev
+from Commands.Account import Account
+
+intents = discord.Intents.default()
+bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
+
+commandCogs = [Dev, Account]
+
+config = AppConfig(
+    DevGuild = 920851074116636692
+)
+
+state = AppState(
+    Config = config,
+    DB = KeyValDB()
+)
+
+@bot.event
+async def on_ready():
+    for cog in commandCogs:
+        await bot.add_cog(cog(bot, state))
+    await bot.tree.sync(guild=discord.Object(id=config.DevGuild))  
+    print(f"Logged in as {bot.user}")
+
+bot.run(os.environ["DISCORD_ORCA_TOKEN"])
