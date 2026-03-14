@@ -15,7 +15,7 @@ bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 commandCogs = [Dev, Account, S3]
 
-devMode = True
+devMode = False
 
 dbPath = "/app/ORCA.db"
 tokenServiceUrl = "localhost:5000"
