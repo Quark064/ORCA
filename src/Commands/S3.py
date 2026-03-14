@@ -658,6 +658,3 @@ class S3(CommandBase):
         apiCode = self._humanReplayToApiReplay(humanApiCode)
 
         return len(apiCode) == 16 and apiCode.isalnum()
-    
-    async def cog_load(self):
-        self.bot.tree.add_command(self.group)

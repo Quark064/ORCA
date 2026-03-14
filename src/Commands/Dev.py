@@ -5,7 +5,11 @@ import discord
 from Models import AppState
 
 class Dev(commands.Cog):
-    group = app_commands.Group(name="dev", description="Developer Debug Commands")
+    group = app_commands.Group(
+        name="dev",
+        description="Developer Debug Commands",
+        guild_ids=[920851074116636692]
+    )
 
     def __init__(self, bot: commands.Bot, state: AppState):
         self.bot = bot
@@ -18,7 +22,3 @@ class Dev(commands.Cog):
     @group.command(name="user_count", description="Check the number of signed in users.")
     async def UserCount(self, interaction: discord.Interaction):
         await interaction.response.send_message(f"DB reports `{self.state.DB.Count(self.state.DB.TokenMessageDB)}` users.")
-
-    async def cog_load(self):
-        devGuild = discord.Object(id=self.state.Config.DevGuild)
-        self.bot.tree.add_command(self.group, guild=devGuild)

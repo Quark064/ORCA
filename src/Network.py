@@ -7,6 +7,7 @@ import httpx
 import jwt
 
 from discord import app_commands
+from ff3 import FF3Cipher
 
 from os import urandom
 from urllib.parse import urlencode
@@ -38,7 +39,11 @@ class DiscordRequest:
 
 
 class TokenManager:
-    DELIMITER = "|"
+    ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=.:;"
+    KEY_LEN = 32
+    PAD_CHAR = ";"
+    DELIMITER = ":"
+    SPOILER_MARKDOWN = "||"
 
     class SessionMissingFromStore(app_commands.AppCommandError):
         pass
@@ -59,15 +64,25 @@ class TokenManager:
 
 
     @staticmethod
-    async def CreateTokenMessage(user: discord.User | discord.Member) -> int:
-        return await DiscordRequest.CreatePinnedDmMsg(user, TokenManager.DELIMITER * (len(TokenManager.Token) - 1))
+    async def CreateTokenMessage(user: discord.User | discord.Member, cipher: FF3Cipher) -> int:
+        emptyTokenStr = TokenManager.DELIMITER * (len(TokenManager.Token) - 1)
+        msgContent = TokenManager.EncryptString(emptyTokenStr, cipher)
+
+        return await DiscordRequest.CreatePinnedDmMsg(user, f"{TokenManager.SPOILER_MARKDOWN}{msgContent}{TokenManager.SPOILER_MARKDOWN}")
     
     @staticmethod
-    async def GetTokens(user: discord.User | discord.Member, tokenMsgId: int) -> TokenManager.CachedTokens:
+    async def GetTokens(
+        user: discord.User | discord.Member,
+        tokenMsgId: int,
+        cipher: FF3Cipher
+    ) -> TokenManager.CachedTokens:
         dm = await user.create_dm()
         msg = await dm.fetch_message(tokenMsgId)
 
-        tokens = msg.content.split(TokenManager.DELIMITER)
+        msgContent = msg.content.strip(TokenManager.SPOILER_MARKDOWN)
+        msgContent = TokenManager.DecryptString(msgContent, cipher)
+        
+        tokens = msgContent.split(TokenManager.DELIMITER)
         
         return TokenManager.CachedTokens(
             Session = tokens[TokenManager.Token.SESSION_TOKEN.value],
@@ -76,11 +91,18 @@ class TokenManager:
         )
     
     @staticmethod
-    async def SetTokens(user: discord.User | discord.Member, tokenMsgId: int, tokens: CachedTokens) -> None:
+    async def SetTokens(
+        user: discord.User | discord.Member,
+        tokenMsgId: int, tokens: CachedTokens,
+        cipher: FF3Cipher
+    ) -> None:
         dm = await user.create_dm()
         msg = await dm.fetch_message(tokenMsgId)
 
-        currTokens = msg.content.split(TokenManager.DELIMITER)
+        msgContent = msg.content.strip(TokenManager.SPOILER_MARKDOWN)
+        msgContent = TokenManager.DecryptString(msgContent, cipher)
+
+        currTokens = msgContent.split(TokenManager.DELIMITER)
         newTokens = [tokens.Session, tokens.GameWeb, tokens.Bullet]
 
         for i in TokenManager.Token:
@@ -89,9 +111,11 @@ class TokenManager:
                 currTokens[i.value] = val
 
         mergedResult = TokenManager.DELIMITER.join(currTokens)
+        cipherText = TokenManager.EncryptString(mergedResult, cipher)
 
-        await msg.edit(content=mergedResult)
+        await msg.edit(content=f"{TokenManager.SPOILER_MARKDOWN}{cipherText}{TokenManager.SPOILER_MARKDOWN}")
 
+    # Helper Methods --------------------
     @staticmethod
     def IsTokenExpired(token: str):
         payload = jwt.decode(
@@ -104,6 +128,35 @@ class TokenManager:
             return False
 
         return exp < (time.time() + 5)
+    
+    @staticmethod
+    def EncryptString(text: str, cipher: FF3Cipher) -> str:
+        out = []
+        for i in range(0, len(text), cipher.maxLen):
+            chunk = text[i:i+cipher.maxLen]
+            if len(chunk) < cipher.minLen:
+                chunk += TokenManager.PAD_CHAR * (cipher.minLen - len(chunk))
+            out.append(cipher.encrypt(chunk))
+
+        return "".join(out)
+
+    @staticmethod
+    def DecryptString(cipherText: str, cipher: FF3Cipher) -> str:
+        out = []
+        for i in range(0, len(cipherText), cipher.maxLen):
+            chunk = cipherText[i:i+cipher.maxLen]
+            out.append(cipher.decrypt(chunk))
+        
+        result = "".join(out)
+        return result.strip(TokenManager.PAD_CHAR)
+
+    @staticmethod
+    def CreateCipher(key: str) -> FF3Cipher:
+        return FF3Cipher.withCustomAlphabet(
+            key[:TokenManager.KEY_LEN],
+            key[TokenManager.KEY_LEN:],
+            TokenManager.ALPHABET
+        )
 
 class NintendoRequest:
     # Generate Login URL ----------

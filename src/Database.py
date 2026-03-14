@@ -7,14 +7,18 @@ class MissingAuthVerifier(app_commands.AppCommandError):
 class MissingTokenMessage(app_commands.AppCommandError):
     pass
 
+class MissingTokenKey(app_commands.AppCommandError):
+    pass
+
 class KeyValDB:
     def __init__(self, dbPath: str):
-        self.DbEnv = lmdb.open(dbPath, max_dbs=4, map_size=10 * 1024 * 1024)
+        self.DbEnv = lmdb.open(dbPath, max_dbs=5, map_size=10 * 1024 * 1024)
         
         self.TokenMessageDB = self.DbEnv.open_db(b"TokenMessageDB")
         self.AuthVerifierDB = self.DbEnv.open_db(b"AuthVerifierDB")
         self.AuthMessageDB = self.DbEnv.open_db(b"AuthMessageDB")
         self.BulletExpDB = self.DbEnv.open_db(b"BulletExpDB")
+        self.TokenEncryptKeyDB = self.DbEnv.open_db(b"TokenEncryptKeyDB")
 
     def Get(self, bucket, key, decode=True):
         with self.DbEnv.begin() as txn:

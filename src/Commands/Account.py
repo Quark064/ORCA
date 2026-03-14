@@ -1,5 +1,7 @@
+import secrets
 from urllib.parse import parse_qs, urlparse
 
+from ff3 import FF3Cipher
 from discord.ext import commands
 from discord import app_commands
 import discord
@@ -83,9 +85,9 @@ class Account(CommandBase):
             
         # Send the disclaimer about the DM token storage.
         disclaimer = [
-            "In order to avoid saving any login information in the bot, your Nintendo access tokens will be stored and retrieved from this DM.",
-            "This storage message can be deleted with the `/account logout` command at any time.",
-            "These tokens are never cached in O.R.C.A. and are sent directly to Nintendo - either by O.R.C.A. directly or its accompanying token synthesis process."
+            "In order to avoid saving any login information in the bot, your Nintendo access tokens are encrypted and stored in this DM.",
+            "This storage message can be deleted with the `/account logout` command at any time. When you run a command, these keys are fetched and decrypted.",
+            "These tokens are never cached in O.R.C.A. and are sent directly to Nintendo - either by O.R.C.A. or its accompanying token synthesis process."
         ]
         await interaction.user.send("\n".join(disclaimer))
 
@@ -94,12 +96,20 @@ class Account(CommandBase):
         if oldTokenStore is not None:
             await Network.DiscordRequest.AttemptDeleteDmMsg(interaction.user, int(oldTokenStore))
         
-        storageMsgId = await Network.TokenManager.CreateTokenMessage(interaction.user)
+        # Create a unique encryption key for the tokens.
+        keyStr = secrets.token_hex(24).upper()
+        cipher = Network.TokenManager.CreateCipher(keyStr)
+
+        # Create the token message.
+        storageMsgId = await Network.TokenManager.CreateTokenMessage(interaction.user, cipher)
+        
+        # Save parameters to the database.
         self.state.DB.Set(self.state.DB.TokenMessageDB, interaction.user.id, storageMsgId)
+        self.state.DB.Set(self.state.DB.TokenEncryptKeyDB, interaction.user.id, keyStr)
 
         # Set the Session Token into the newly created message.
         tokens = Network.TokenManager.CachedTokens(sessionToken, None, None)
-        await Network.TokenManager.SetTokens(interaction.user, storageMsgId, tokens)
+        await Network.TokenManager.SetTokens(interaction.user, storageMsgId, tokens, cipher)
 
         await interaction.followup.send(
             "✅ Successfully signed in.",
@@ -158,9 +168,4 @@ class Account(CommandBase):
         self.state.DB.Del(self.state.DB.AuthVerifierDB, interaction.user.id)
             
         await interaction.followup.send("✅ Successfully signed out.")
-
-
-
-    async def cog_load(self):
-        self.bot.tree.add_command(self.group)
     

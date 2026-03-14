@@ -1,9 +1,9 @@
 import time
 
-from discord.ext import commands
-from discord import app_commands
 import discord
 import httpx
+from discord.ext import commands
+from discord import app_commands
 
 import Network
 import Database
@@ -24,8 +24,19 @@ class CommandBase(commands.Cog):
             if tokenMsg is None:
                 raise Database.MissingTokenMessage()
             
+            # Get the token decryption key, and sign the user out if it was not found.
+            key = self.state.DB.Get(self.state.DB.TokenEncryptKeyDB, user.id)
+            if not key:
+                await Network.DiscordRequest.AttemptDeleteDmMsg(user, int(tokenMsg))
+                self.state.DB.Del(self.state.DB.TokenMessageDB, user.id)
+                
+                raise Database.MissingTokenKey()
+            
+            cipher = Network.TokenManager.CreateCipher(key)
+
+            
             # Fetch the tokens from Discord using the message ID.
-            tokens = await Network.TokenManager.GetTokens(user, int(tokenMsg))
+            tokens = await Network.TokenManager.GetTokens(user, int(tokenMsg), cipher)
 
             # Throw an error if the Session Token is missing or expired.
             if not tokens.Session:
@@ -44,13 +55,13 @@ class CommandBase(commands.Cog):
                     tokens.GameWeb = refreshedTokens.GameWeb
                     tokens.Bullet = refreshedTokens.Bullet
                     self.state.DB.Set(self.state.DB.BulletExpDB, user.id, int(time.time() + 7000))
-                    await Network.TokenManager.SetTokens(user, int(tokenMsg), tokens)
+                    await Network.TokenManager.SetTokens(user, int(tokenMsg), tokens, cipher)
                 
                 # GameWeb is valid but Bullet Token has expired, perform a partial refresh.
                 elif time.time() >= int(bulletExp):
                     tokens.Bullet = await Network.NintendoRequest.GetBulletToken(self.client, self.state.Config.NSAVersion, tokens.GameWeb) 
                     self.state.DB.Set(self.state.DB.BulletExpDB, user.id, int(time.time() + 7000))
-                    await Network.TokenManager.SetTokens(user, int(tokenMsg), tokens)
+                    await Network.TokenManager.SetTokens(user, int(tokenMsg), tokens, cipher)
 
             return tokens
 
@@ -137,6 +148,11 @@ class CommandBase(commands.Cog):
             await self._sendError(
                 interaction,
                 "You don't appear to be signed in. Please run `/account login_stage_1`, follow the login instructions, and try again."
+            )
+        elif isinstance(error, Database.MissingTokenKey):
+            await self._sendError(
+                interaction,
+                "The key to decrypt your DM tokens was not found in the database. Please sign in again."
             )
 
         else:
