@@ -1,12 +1,20 @@
 import lmdb
+from discord import app_commands
+
+class MissingAuthVerifier(app_commands.AppCommandError):
+    pass
+
+class MissingTokenMessage(app_commands.AppCommandError):
+    pass
 
 class KeyValDB:
-    def __init__(self):
-        self.DbEnv = lmdb.open("ORCA.db", max_dbs=3, map_size=10 * 1024 * 1024)
+    def __init__(self, dbPath: str):
+        self.DbEnv = lmdb.open(dbPath, max_dbs=4, map_size=10 * 1024 * 1024)
         
         self.TokenMessageDB = self.DbEnv.open_db(b"TokenMessageDB")
         self.AuthVerifierDB = self.DbEnv.open_db(b"AuthVerifierDB")
         self.AuthMessageDB = self.DbEnv.open_db(b"AuthMessageDB")
+        self.BulletExpDB = self.DbEnv.open_db(b"BulletExpDB")
 
     def Get(self, bucket, key, decode=True):
         with self.DbEnv.begin() as txn:
@@ -29,5 +37,9 @@ class KeyValDB:
         with self.DbEnv.begin(write=True) as txn:
             txn.delete(self._objToDB(key), db=bucket)
     
+    def Count(self, bucket):
+        with self.DbEnv.begin() as txn:
+            return txn.stat(db=bucket)["entries"]
+
     def _objToDB(self, obj):
         return bytes(str(obj), encoding="utf-8")

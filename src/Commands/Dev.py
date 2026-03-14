@@ -15,6 +15,10 @@ class Dev(commands.Cog):
     async def Online(self, interaction: discord.Interaction):
         await interaction.response.send_message(f"Online, took {round(self.bot.latency*1000)} ms")
     
+    @group.command(name="user_count", description="Check the number of signed in users.")
+    async def UserCount(self, interaction: discord.Interaction):
+        await interaction.response.send_message(f"DB reports `{self.state.DB.Count(self.state.DB.TokenMessageDB)}` users.")
+
     async def cog_load(self):
         devGuild = discord.Object(id=self.state.Config.DevGuild)
         self.bot.tree.add_command(self.group, guild=devGuild)
