@@ -11,20 +11,19 @@ from Commands.Dev import Dev
 from Commands.Account import Account
 from Commands.S3 import S3
 
-DEV_MODE = True
+DEV_MODE = False
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 commandCogs = [Dev, Account, S3]
 
-devMode = False
-
 dbPath = "/app/ORCA.db"
-tokenServiceUrl = "localhost:5000"
+tokenServiceUrl = "frontend-nsa:5000"
+
 if DEV_MODE:
     dbPath = "ORCA.db"
-    tokenServiceUrl = "frontend-nsa:5000"
+    tokenServiceUrl = "localhost:5000"
 
 config = AppConfig(
     NSAVersion = "3.2.1",
