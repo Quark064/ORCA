@@ -472,10 +472,11 @@ class TokenSynthRequest:
     @staticmethod
     async def GetPrivilegedTokens(
         client: httpx.AsyncClient,
-        sessionToken: str
+        sessionToken: str,
+        serverHostname: str
     ) -> TokenSynthRequest.PrivilegedTokens:
         try:
-            HOST_SERVER = "http://localhost:5000/login"
+            HOST_SERVER = f"http://{serverHostname}/login"
 
             params = {
                 "session_token": sessionToken

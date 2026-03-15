@@ -51,7 +51,7 @@ class CommandBase(commands.Cog):
                 
                 # Tokens are missing or expired, perform a full refresh.
                 if not tokens.GameWeb or not tokens.Bullet or not bulletExp or Network.TokenManager.IsTokenExpired(tokens.GameWeb):
-                    refreshedTokens = await Network.TokenSynthRequest.GetPrivilegedTokens(self.client, tokens.Session)
+                    refreshedTokens = await Network.TokenSynthRequest.GetPrivilegedTokens(self.client, tokens.Session, self.state.Config.TokenServiceURL)
                     tokens.GameWeb = refreshedTokens.GameWeb
                     tokens.Bullet = refreshedTokens.Bullet
                     self.state.DB.Set(self.state.DB.BulletExpDB, user.id, int(time.time() + 7000))

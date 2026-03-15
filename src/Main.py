@@ -19,10 +19,11 @@ bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 commandCogs = [Dev, Account, S3]
 
 dbPath = "/app/ORCA.db"
-tokenServiceUrl = "localhost:5000"
+tokenServiceUrl = "frontend-nsa:5000"
 
 if DEV_MODE:
     dbPath = "ORCA.db"
+    tokenServiceUrl = "localhost:5000"
 
 config = AppConfig(
     NSAVersion = "3.2.1",
