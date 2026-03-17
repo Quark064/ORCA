@@ -84,7 +84,7 @@ class CommandBase(commands.Cog):
         elif isinstance(error, discord.Forbidden):
             await self._sendError(
                 interaction,
-                "Couldn't access DMs. Check your DM permissions or rerun the command in O.R.C.A's DMs."
+                "Couldn't access DMs. Add O.R.C.A. to your apps to grant this permission and try again."
             )
         elif isinstance(error, discord.HTTPException):
             await self._sendError(
@@ -147,7 +147,7 @@ class CommandBase(commands.Cog):
         elif isinstance(error, Database.MissingTokenMessage):
             await self._sendError(
                 interaction,
-                "You don't appear to be signed in. Please run `/account login_stage_1`, follow the login instructions, and try again."
+                "You don't appear to be signed in. Please add O.R.C.A. to your apps, run `/account login_stage_1`, follow the login instructions, and try again."
             )
         elif isinstance(error, Database.MissingTokenKey):
             await self._sendError(

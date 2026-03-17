@@ -1,7 +1,6 @@
 import secrets
 from urllib.parse import parse_qs, urlparse
 
-from ff3 import FF3Cipher
 from discord.ext import commands
 from discord import app_commands
 import discord
@@ -97,7 +96,8 @@ class Account(CommandBase):
             await Network.DiscordRequest.AttemptDeleteDmMsg(interaction.user, int(oldTokenStore))
         
         # Create a unique encryption key for the tokens.
-        keyStr = secrets.token_hex(24).upper()
+        genSize = Network.TokenManager.KEY_LEN + Network.TokenManager.TWEAK_LEN
+        keyStr = secrets.token_hex(genSize // 2).upper()
         cipher = Network.TokenManager.CreateCipher(keyStr)
 
         # Create the token message.
@@ -166,6 +166,8 @@ class Account(CommandBase):
         self.state.DB.Del(self.state.DB.AuthMessageDB, interaction.user.id)
         self.state.DB.Del(self.state.DB.TokenMessageDB, interaction.user.id)
         self.state.DB.Del(self.state.DB.AuthVerifierDB, interaction.user.id)
+        self.state.DB.Del(self.state.DB.TokenEncryptKeyDB, interaction.user.id)
+        self.state.DB.Del(self.state.DB.BulletExpDB, interaction.user.id)
             
         await interaction.followup.send("✅ Successfully signed out.")
     

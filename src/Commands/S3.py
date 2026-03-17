@@ -204,7 +204,7 @@ class S3(CommandBase):
             title="Using with LeanYoshi's Seed Checker",
             description="\n".join([
                 "You can upload this file to the [Splatoon 3 Seed Checker](https://leanny.github.io/splat3seedchecker/#/settings).\n",
-                "Use the link to the URL above to navigate to user settings.",
+                "Use the link above to navigate to user settings.",
                 "Please upload this JSON file via `Import from SplatNet` -> `Seed Key and Gear` -> `Upload`."
             ]),
             color=0x3EC995
@@ -434,7 +434,10 @@ class S3(CommandBase):
             
             # Ranked Battle Mode
             else:
-                rankStr = f"*Rank {battle["udemae"]}*"
+                # Private battles don't have a rank.
+                rank = battle["udemae"]
+                if rank:
+                    rankStr = f"*Rank {rank}*"
                 if battle["knockout"] == "WIN":
                     scoreStr = "**KNOCKOUT!**"
                 else:

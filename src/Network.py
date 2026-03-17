@@ -41,6 +41,7 @@ class DiscordRequest:
 class TokenManager:
     ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=.:;"
     KEY_LEN = 32
+    TWEAK_LEN = 16
     PAD_CHAR = ";"
     DELIMITER = ":"
     SPOILER_MARKDOWN = "||"
@@ -227,8 +228,8 @@ class NintendoRequest:
             jsonResp = resp.json()
 
             return jsonResp["session_token"]
-        except Exception:
-            raise NintendoRequest.SessionTokenException()
+        except Exception as ex:
+            raise NintendoRequest.SessionTokenException() from ex
     
 
     # Get Access/ID Token ---------
@@ -268,8 +269,8 @@ class NintendoRequest:
                 ID = jsonResp["id_token"],
                 Access = jsonResp["access_token"]
             )
-        except Exception:
-            raise NintendoRequest.ConnectTokenException()
+        except Exception as ex:
+            raise NintendoRequest.ConnectTokenException() from ex
     
     
     # Get User Info ---------------
@@ -319,8 +320,8 @@ class NintendoRequest:
                 CreatedAt = datetime.fromtimestamp(jsonResp["createdAt"], timezone.utc),
                 Language  = jsonResp["language"]
             )
-        except Exception:
-            raise NintendoRequest.UserInfoException()
+        except Exception as ex:
+            raise NintendoRequest.UserInfoException() from ex
 
 
     # Get Bullet Token
@@ -351,8 +352,8 @@ class NintendoRequest:
 
             return respObj["bulletToken"]
         
-        except Exception:
-            raise NintendoRequest.BulletTokenException()
+        except Exception as ex:
+            raise NintendoRequest.BulletTokenException() from ex
 
 
     # Send a GraphQL Query
@@ -402,8 +403,8 @@ class NintendoRequest:
             
             return resp.json()
         
-        except Exception:
-            raise NintendoRequest.GraphQLException()
+        except Exception as ex:
+            raise NintendoRequest.GraphQLException() from ex
 
     # Private Helpers -------------
     @staticmethod
@@ -495,12 +496,10 @@ class TokenSynthRequest:
                 GameWeb = respJson["GameWebToken"],
                 Bullet = respJson["BulletToken"],
             )
-        except TokenSynthRequest.NoBulletAccessException as ex:
-            raise ex
-        except TokenSynthRequest.SynthException as ex:
-            raise ex
+        except (TokenSynthRequest.NoBulletAccessException, TokenSynthRequest.SynthException):
+            raise
         except Exception as ex:
-            raise TokenSynthRequest.SynthException(str(ex))
+            raise TokenSynthRequest.SynthException(str(ex)) from ex
 
 
 class BuiltGraphQLOperation:
