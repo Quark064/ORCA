@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="NSA.Network.Core/NSA.Network.Core.csproj" Id="9ed6228e-4709-4dfe-b352-8a7ec465bd7f" />
+  <Project Path="NSA.Security.Core/NSA.Security.Core.csproj" />
+  <Project Path="ORCA.Main/ORCA.Main.csproj" />
+  <Project Path="ORCA.Test/ORCA.Test.csproj" Id="581c6f47-b96a-4ddf-9b88-9e46d997d851" />
+</Solution>

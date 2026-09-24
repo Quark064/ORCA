@@ -1,5 +1,10 @@
-.venv
+// Sensitive
+NSA.Security.Core
+ORCA.Test
+*/appsettings*.json
+
+// Artifacts
+.vs
 .vscode
-__pycache__
-ORCA.db/
-Test.py
+*/bin
+*/obj

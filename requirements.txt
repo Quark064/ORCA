@@ -1,7 +1,0 @@
-httpx[http2]
-discord.py
-lmdb
-PyJWT
-mmh3
-orjson
-ff3
