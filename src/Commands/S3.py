@@ -34,6 +34,12 @@ class S3(CommandBase):
         parent=group
     )
 
+    coopGroup = app_commands.Group(
+        name="salmon",
+        description="Commands related to Salmon Run.",
+        parent=group
+    )
+
     matchTypeLookup = {
         "REGULAR":   "Regular",
         "BANKARA":   "Ranked",
@@ -591,6 +597,28 @@ class S3(CommandBase):
 
         await interaction.followup.send(embed=embed)
 
+    @coopGroup.command(name="summary", description="Displays the results of the last 10 jobs.")
+    @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
+    async def SalmonHistory(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        # Get and refresh tokens.
+        tokens = await self._getAndVerifyTokensHelper(interaction.user, wranglePrivTokens=True)
+
+        # Send GraphQL request.
+        assert tokens.Bullet is not None
+        queryResult = await Network.NintendoRequest.SendGraphQL(
+            self.client,
+            self.state.Config.NSAVersion,
+            tokens.Bullet,
+            Network.BuiltGraphQLOperation.CoopHistoryQuery
+        )
+
+        embed = discord.Embed(
+
+        )
+
+        await interaction.followup.send(embed=embed)
 
     # Helpers -----------------------------------------------------------------
     def _iconFromName(self, emojiName: str, animated: bool = False) -> str:
@@ -642,7 +670,7 @@ class S3(CommandBase):
         return self._iconFromName(f"{emojiName}Arrow")
 
     def _isJoinable(self, onlineState: str):
-        return onlineState in ("VS_MODE_MATCHING", "COOP_MODE_MATCHING")
+        return onlineState.endswith("MATCHING")
     
     def _colorToHex(self, color: dict) -> int:
         r = int(color['r'] * 255) & 0xFF

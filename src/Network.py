@@ -542,3 +542,8 @@ class BuiltGraphQLOperation:
         Name = "PhotoAlbumQuery",
         Hash = "903bd1344473a7221867315d0d897ac36604f52064b62a9510a394f2e62fa9c8"
     )
+
+    CoopHistoryQuery = NintendoRequest.GraphQLOperation(
+        Name = "CoopHistoryQuery",
+        Hash = "e11a8cf2c3de7348495dea5cdcaa25e0c153541c4ed63f044b6c174bc5b703df"
+    )

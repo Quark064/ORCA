@@ -120,7 +120,7 @@ class CommandBase(commands.Cog):
                 interaction,
                 "Unable to get User Info from the received Access Token. Please try again later."
             )
-        elif isinstance(error, Network.NintendoRequest.GraphQLOperation):
+        elif isinstance(error, Network.NintendoRequest.GraphQLException):
             await self._sendError(
                 interaction,
                 "An error occurred while executing the GraphQL request. Please try again later."
